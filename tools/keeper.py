@@ -39,6 +39,7 @@ class Keeper(object):
         plt.scatter(target[:, 0], target[:, 1], label='target', color='g')
         plt.scatter(pred[:, 0], pred[:, 1], label='prediction', color='r')
         plt.savefig(img_file)
+        plt.clf()
 
     def setup_logger(self, file_name='train.log'):
         log_file = os.path.join(self.experiment_dir, file_name)
