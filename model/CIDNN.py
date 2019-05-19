@@ -3,14 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import torch.utils.data
-import torchvision
-from torch import optim
-
-import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 
 
 class L2_DistanceAttention(nn.Module):
@@ -165,6 +157,12 @@ class EncoderNetWithLSTM(nn.Module):
 
         self.gru = nn.GRU(input_size, hidden_size, self.n_layers)
         self.lstm = nn.LSTM(input_size, hidden_size, self.n_layers)
+
+        # nn.init.xavier_normal(self.lstm.all_weights)
+        # nn.init.orthogonal(self.gru.weight_ih_l0)
+        # nn.init.orthogonal(self.gru.weight_hh_l0)
+        # self.gru.bias_ih_l0.zero_()
+        # self.gru.bias_hh_l0.zero_()
 
     def forward(self, input_traces, hidden):
         # input_trace: (batch, pedestrian_num, 2)

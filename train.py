@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch import optim
 
 from dataloader.load_data import load_GC
-from model.prediction_model import CIDNN_Model
+from model import build_model
 from tools.keeper import Keeper
 from tools.helper import AverageMeter, adjust_learning_rate
 
@@ -64,6 +64,8 @@ def create_args():
 
     parser.add_argument('--dataset', type=str, default=DATA_PATH)
     parser.add_argument('--resume', type=str, default=None)
+    parser.add_argument('--backbone', type=str, default='CIDNN',
+                        choices=['CIDNN', 'SR_LSTM'])
     return parser
 
 
@@ -110,7 +112,7 @@ def main(args):
 
     log.info('building model ... \n')
 
-    model = CIDNN_Model(args)
+    model = build_model(args)
     model = torch.nn.DataParallel(model).cuda() if args.use_cuda else model
 
     encoder_optimizer = optim.Adam(model.encoder_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
