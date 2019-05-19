@@ -60,6 +60,7 @@ class EncoderNet(nn.Module):
         self.fc1 = torch.nn.Linear(input_size, hidden1_size)
         self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
         self.fc3 = torch.nn.Linear(hidden2_size, hidden_size)
+        initial_fc_weights(self.modules())
 
     def forward(self, input_traces):
         # input_trace: (B, pedestrian_num, input_size(input_frame * 2))
@@ -94,6 +95,7 @@ class DecoderNet(nn.Module):
         self.fc1 = torch.nn.Linear(target_size, hidden1_size)
         self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
         self.fc3 = torch.nn.Linear(hidden2_size, hidden_size)
+        initial_fc_weights(self.modules())
 
     def forward(self, target_traces):
         # target_trace: (B, pedestrian_num, 2)
@@ -128,6 +130,7 @@ class RegressionNet(nn.Module):
         self.fc1 = torch.nn.Linear(hidden_size, regression_size)
         self.fc2 = torch.nn.Linear(regression_size, hidden1_size)
         self.fc3 = torch.nn.Linear(hidden1_size, regression_size)
+        initial_fc_weights(self.modules())
 
     def forward(self, input_attn_hidden_traces, target_hidden_traces, target_traces):
         # target_hidden_trace: (B, pedestrian_num, hidden_size)
@@ -159,10 +162,10 @@ class EncoderNetWithLSTM(nn.Module):
         self.lstm = nn.LSTM(input_size, hidden_size, self.n_layers)
 
         # nn.init.xavier_normal(self.lstm.all_weights)
-        # nn.init.orthogonal(self.gru.weight_ih_l0)
-        # nn.init.orthogonal(self.gru.weight_hh_l0)
-        # self.gru.bias_ih_l0.zero_()
-        # self.gru.bias_hh_l0.zero_()
+        nn.init.xavier_normal_(self.lstm.weight_ih_l0)
+        nn.init.xavier_normal_(self.lstm.weight_hh_l0)
+        self.lstm.bias_ih_l0.zero_()
+        self.lstm.bias_hh_l0.zero_()
 
     def forward(self, input_traces, hidden):
         # input_trace: (batch, pedestrian_num, 2)
@@ -181,6 +184,12 @@ class EncoderNetWithLSTM(nn.Module):
         return output_traces, next_hidden_list
 
     def init_hidden(self, batch_size):
-        return [[torch.zeros(self.n_layers, batch_size, self.hidden_size, requires_grad=True)
+        return [[torch.zeros(self.n_layers, batch_size, self.hidden_size, requires_grad=True).cuda()
                  for _ in range(2)]
                 for _ in range(self.pedestrian_num)]
+
+
+def initial_fc_weights(modules):
+    for m in modules:
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_normal_(m.weight)

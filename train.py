@@ -101,7 +101,7 @@ def validation(args, model, epoch, val_loader):
 
     val_MSE_loss, val_L2_loss = MSE_loss_meter.avg, L2_square_loss_meter.avg
 
-    log.info('Epoch: [%d/%d], L2_suqare_loss: %.9f, MSE_loss: %.9f' %
+    log.info('Validation Epoch: [%d/%d], L2_suqare_loss: %.9f, MSE_loss: %.9f' %
              (epoch, args.epochs, val_L2_loss, val_MSE_loss))
 
     return val_MSE_loss
@@ -113,7 +113,7 @@ def main(args):
     log.info('building model ... \n')
 
     model = build_model(args)
-    model = torch.nn.DataParallel(model).cuda() if args.use_cuda else model
+    model = model.cuda() if args.use_cuda else model
 
     encoder_optimizer = optim.Adam(model.encoder_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     decoder_optimizer = optim.Adam(model.decoder_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -169,7 +169,7 @@ def main(args):
 
         train_MSE_loss, train_L2_loss = MSE_loss_meter.avg, L2_square_loss_meter.avg
 
-        log.info('Epoch: [%d/%d], L2_suqare_loss: %.9f, MSE_loss: %.9f \n' %
+        log.info('Train Epoch: [%d/%d], L2_suqare_loss: %.9f, MSE_loss: %.9f \n' %
                  (epoch, args.epochs, train_L2_loss, train_MSE_loss))
 
         # ----------------------- Validation --------------------
@@ -180,7 +180,7 @@ def main(args):
                 best_loss = val_MSE_loss
                 keeper.save_checkpoint({
                     'epoch': epoch,
-                    'state_dict': model.module.state_dict() if args.use_cuda else model.state_dict(),
+                    'state_dict': model.state_dict(),
                     'encoder_optimizer': encoder_optimizer.state_dict(),
                     'decoder_optimizer': decoder_optimizer.state_dict(),
                     'regression_optimizer': regression_optimizer.state_dict(),
@@ -189,7 +189,7 @@ def main(args):
 
         keeper.save_checkpoint({
             'epoch': epoch,
-            'state_dict': model.module.state_dict() if args.use_cuda else model.state_dict(),
+            'state_dict': model.state_dict(),
             'encoder_optimizer': encoder_optimizer.state_dict(),
             'decoder_optimizer': decoder_optimizer.state_dict(),
             'regression_optimizer': regression_optimizer.state_dict(),

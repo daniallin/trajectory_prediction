@@ -32,6 +32,8 @@ class Keeper(object):
 
     def save_img(self, input, target, pred, img_name='test.jpg'):
         img_path = os.path.join(self.experiment_dir, 'val_img')
+        if self.args.use_cuda:
+            input, target, pred = input.cpu(), target.cpu(), pred.cpu()
         if not os.path.exists(img_path):
             os.makedirs(img_path)
         img_file = os.path.join(img_path, img_name)
