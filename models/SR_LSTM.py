@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model import initial_fc_weights
-
 
 class EncoderNetLSTM(nn.Module):
     def __init__(self, pedestrian_num, input_size, hidden_size, n_layers=2):
@@ -148,4 +146,7 @@ class PredictionNet(nn.Module):
         return regression_traces
 
 
-
+def initial_fc_weights(modules):
+    for m in modules:
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_normal_(m.weight)

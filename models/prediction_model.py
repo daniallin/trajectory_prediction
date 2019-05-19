@@ -3,9 +3,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 
-from model.CIDNN import EncoderNetWithLSTM,\
+from models.CIDNN import EncoderNetWithLSTM,\
     DecoderNet, RegressionNet, Attention
-from model.SR_LSTM import EncoderNetLSTM, SRMotionGate, PredictionNet
+from models.SR_LSTM import EncoderNetLSTM, SRMotionGate, PredictionNet
+
+
+def build_model(args):
+    if args.backbone == 'CIDNN':
+        return CIDNN_Model(args)
+    elif args.backbone == 'SR_LSTM':
+        return SRLSTM_Model(args)
 
 
 class CIDNN_Model(nn.Module):

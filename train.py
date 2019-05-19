@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch import optim
 
 from dataloader.load_data import load_GC
-from model import build_model
+from models.prediction_model import build_model
 from tools.keeper import Keeper
 from tools.helper import AverageMeter, adjust_learning_rate
 
