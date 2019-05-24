@@ -3,3 +3,4 @@
 datasets/
 checkpoints/
 .DS_Store
+l_test*

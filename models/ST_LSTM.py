@@ -3,41 +3,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class EncoderNetLSTM(nn.Module):
-    def __init__(self, pedestrian_num, input_size, hidden_size, n_layers=2):
-        super(EncoderNetLSTM, self).__init__()
+class EncoderWithLSTM(nn.Module):
+    def __init__(self, pedestrian_num, input_size, hidden_size, n_layers=2, dropout=0.5):
+        super(EncoderWithLSTM, self).__init__()
         # input_size = 2
         self.pedestrian_num = pedestrian_num
         self.input_size = input_size
 
         self.n_layers = n_layers
         self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(input_size, hidden_size, self.n_layers)
+        self.lstm = nn.LSTM(input_size, hidden_size, n_layers, dropout=dropout)
 
-        nn.init.xavier_normal_(self.lstm.weight_ih_l0)
-        nn.init.xavier_normal_(self.lstm.weight_hh_l0)
-        nn.init.xavier_normal_(self.lstm.weight_ih_l1)
-        nn.init.xavier_normal_(self.lstm.weight_hh_l1)
-
-    def forward(self, input_traces, hidden):
-        # input_traces: (batch, pedestrian_num, 2)
-        # 2 means (x, y)
-        # output_traces: (batch, pedestrian_num, hidden_size)
-        next_hidden_list = []
-        output_list = []
-        cell_list = []
+    def forward(self, input_traces, pre_hiddens):
+        """
+        :param input_traces: size: (batch, pedestrian_num, 2), where 2 means (x, y)
+        :param pre_hiddens: size: [self.pedestrian_num, (2, [self.n_layers, batch_size, self.hidden_size])]
+        :return: encoder_traces: (batch, pedestrian_num, hidden_size)
+                 next_hiddens, the same size as pre_hiddens
+        """
+        batch_size = input_traces.size()[0]
+        next_hiddens = []
+        encoder_traces = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size)
         for i in range(self.pedestrian_num):
             input_trace = input_traces[:, i, :].unsqueeze(0)
-            output, next_hidden = self.lstm(input_trace, (hidden[i][0], hidden[i][1]))
+            encoder_trace, next_hidden = self.lstm(input_trace, (pre_hiddens[i][0], pre_hiddens[i][1]))
+            encoder_traces[:, i, :] = encoder_trace.squeeze(0)
+            next_hiddens.append(next_hidden)
 
-            next_hidden_list.append(next_hidden)
-            cell_list.append(next_hidden[1][1])
-            output_list.append(output.squeeze(0))
-
-        output_traces = torch.stack(output_list, 1)
-        cell_states = torch.stack(cell_list, 1)
-
-        return output_traces, next_hidden_list, cell_states
+        return encoder_traces, next_hiddens
 
     def init_hidden(self, batch_size):
         return [[torch.zeros(self.n_layers, batch_size, self.hidden_size, requires_grad=True).cuda()
@@ -155,3 +148,13 @@ def initial_fc_weights(modules):
     for m in modules:
         if isinstance(m, nn.Linear):
             nn.init.xavier_normal_(m.weight)
+
+
+if __name__ == '__main__':
+    torch.manual_seed(0)
+    model = EncoderWithLSTM(20, 2, 128)
+    model.eval()
+    input = torch.rand(32, 20, 2)
+    hidden = torch.rand(20, 2, 2, 32, 128)
+    output = model(input, hidden)
+    print(output[0].size())

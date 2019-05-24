@@ -55,12 +55,12 @@ def create_GC_metadata(raw_data_path, meta_data_path):
     print('create %s successfully!' % meta_data_path)
 
 
-def get_samples_from_frame(f_i, step, frame_num, f_data_list, p_data_list, sample_size):
-    if f_i - step < 0 or f_i + step > frame_num:
+def get_samples_from_frame(f_i, train_step, test_step, frame_num, f_data_list, p_data_list, sample_size):
+    if f_i - test_step - train_step < 0 or f_i + test_step + train_step> frame_num:
         return [], []
 
-    p_set = set(f_data_list[f_i - step])
-    for i in range(f_i - step + 1, f_i + step):
+    p_set = set(f_data_list[f_i - train_step - test_step])
+    for i in range(f_i - train_step - test_step + 1, f_i + train_step + test_step):
         p_set &= set(f_data_list[i])
 
     p_set = list(p_set)
@@ -72,30 +72,30 @@ def get_samples_from_frame(f_i, step, frame_num, f_data_list, p_data_list, sampl
         sample_Y = []
         for i in range(si * sample_size, (si + 1) * sample_size):
             p_data = p_data_list[p_set[i]]
-            sample_X.append([[p_data[str(j)][0], p_data[str(j)][1]] for j in range(f_i - step, f_i)])
-            sample_Y.append([[p_data[str(j)][0], p_data[str(j)][1]] for j in range(f_i, f_i + step)])
+            sample_X.append([[p_data[str(j)][0], p_data[str(j)][1]] for j in range(f_i - train_step, f_i)])
+            sample_Y.append([[p_data[str(j)][0], p_data[str(j)][1]] for j in range(f_i, f_i + test_step)])
         samples_X.append(sample_X)
         samples_Y.append(sample_Y)
 
     return samples_X, samples_Y
 
 
-def collect_sample(f_idx, step, frame_num, f_data_list, p_data_list, sample_size):
+def collect_sample(f_idx, train_step, test_step, frame_num, f_data_list, p_data_list, sample_size):
     ret_X = []
     ret_Y = []
     for i in f_idx:
-        samples_X, samples_Y = get_samples_from_frame(i, step, frame_num, f_data_list, p_data_list, sample_size)
+        samples_X, samples_Y = get_samples_from_frame(i, train_step, test_step, frame_num, f_data_list, p_data_list, sample_size)
         ret_X += samples_X
         ret_Y += samples_Y
 
     return np.array(ret_X).astype(np.float32), np.array(ret_Y).astype(np.float32)
 
 
-def create_GC_train_test_data(meta_data_path, train_test_data_path, random_seed=0):
+def create_GC_train_test_data(meta_data_path, train_test_data_path, train_step=5, test_step=5, random_seed=0):
     # hyper-parameter
     frame_num = 5000
     train_rate = 0.9
-    step = 5
+    # step = 5
     sample_size = 20
 
     # random seed
@@ -114,8 +114,8 @@ def create_GC_train_test_data(meta_data_path, train_test_data_path, random_seed=
     test_idx = random_idx[int(frame_num * train_rate):]
 
     # train set, test set
-    train_X, train_Y = collect_sample(train_idx, step, frame_num, f_data_list, p_data_list, sample_size)
-    test_X, test_Y = collect_sample(test_idx, step, frame_num, f_data_list, p_data_list, sample_size)
+    train_X, train_Y = collect_sample(train_idx, train_step, test_step, frame_num, f_data_list, p_data_list, sample_size)
+    test_X, test_Y = collect_sample(test_idx, train_step, test_step, frame_num, f_data_list, p_data_list, sample_size)
 
     print(train_X.dtype)
     print('train_X: %s, train_Y: %s' % (train_X.shape, train_Y.shape))
@@ -126,14 +126,14 @@ def create_GC_train_test_data(meta_data_path, train_test_data_path, random_seed=
     print('create %s successfully!' % train_test_data_path)
 
 
-def main():
-    GC_raw_data_path = '../data/GC/Annotation'
-    GC_meta_data_path = '../data/GC_meta_data.json'
-    GC_train_test_data_path = '../data/GC.npz'
+def main(train_step=5, test_step=5):
+    GC_raw_data_path = '../datasets/GC/Annotation'
+    GC_meta_data_path = '../datasets/GC_meta_data.json'
+    GC_train_test_data_path = '../datasets/GC_5_8.npz'
 
     create_GC_metadata(GC_raw_data_path, GC_meta_data_path)
-    create_GC_train_test_data(GC_meta_data_path, GC_train_test_data_path)
+    create_GC_train_test_data(GC_meta_data_path, GC_train_test_data_path, train_step, test_step)
 
 
 if __name__ == '__main__':
-    main()
+    main(train_step=5, test_step=8)

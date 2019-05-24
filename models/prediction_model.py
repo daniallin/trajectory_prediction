@@ -63,29 +63,29 @@ class SRLSTM_Model(nn.Module):
     def __init__(self, args):
         super(SRLSTM_Model, self).__init__()
         self.args = args
-        self.encoder = EncoderNetLSTM(args.pedestrian_num, args.input_size, args.hidden_size, args.n_layers)
-        self.motion = SRMotionGate(args.pedestrian_num, args.target_size, args.hidden_size)
-        self.prediction = PredictionNet(args.pedestrian_num, args.target_size, args.hidden_size)
+        self.encoder_net = EncoderNetLSTM(args.pedestrian_num, args.input_size, args.hidden_size, args.n_layers)
+        self.decoder_net = SRMotionGate(args.pedestrian_num, args.target_size, args.hidden_size)
+        self.regression_net = PredictionNet(args.pedestrian_num, args.target_size, args.hidden_size)
 
     def forward(self, input_traces):
         batch_size = input_traces.size(0)
 
         target_traces = input_traces[:, :, self.args.input_frame - 1]
-        encoder_hidden = self.encoder.init_hidden(batch_size)
+        encoder_hidden = self.encoder_net.init_hidden(batch_size)
 
         # run LSTM in observation frame
         for i in range(self.args.input_frame - 1):
-            input_hidden_traces, encoder_hidden, _ = self.encoder(input_traces[:, :, i], encoder_hidden)
+            input_hidden_traces, encoder_hidden, _ = self.encoder_net(input_traces[:, :, i], encoder_hidden)
 
         prediction_list = []
         for i in range(self.args.target_frame):
             # encode LSTM
-            input_hidden_traces, encoder_hidden, input_cell_states = self.encoder(target_traces, encoder_hidden)
+            input_hidden_traces, encoder_hidden, input_cell_states = self.encoder_net(target_traces, encoder_hidden)
 
-            refine_cell_states = self.motion(target_traces, input_cell_states, input_hidden_traces)
+            refine_cell_states = self.decoder_net(target_traces, input_cell_states, input_hidden_traces)
 
             # predict next frame traces
-            prediction_traces = self.prediction(refine_cell_states, target_traces)
+            prediction_traces = self.regression_net(refine_cell_states, target_traces)
 
             # decoder --> location
             target_traces = prediction_traces

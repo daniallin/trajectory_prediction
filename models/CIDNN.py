@@ -158,14 +158,15 @@ class EncoderNetWithLSTM(nn.Module):
         self.n_layers = n_layers
         self.hidden_size = hidden_size
 
-        self.gru = nn.GRU(input_size, hidden_size, self.n_layers)
-        self.lstm = nn.LSTM(input_size, hidden_size, self.n_layers)
+        self.gru = nn.GRU(input_size, hidden_size, n_layers)
+        self.lstm = nn.LSTM(input_size, hidden_size, n_layers)
 
-        # nn.init.xavier_normal(self.lstm.all_weights)
-        nn.init.xavier_normal_(self.lstm.weight_ih_l0)
-        nn.init.xavier_normal_(self.lstm.weight_hh_l0)
-        self.lstm.bias_ih_l0.zero_()
-        self.lstm.bias_hh_l0.zero_()
+        # nn.init.xavier_normal_(self.lstm.weight_ih_l0)
+        # nn.init.xavier_normal_(self.lstm.weight_hh_l0)
+        # nn.init.xavier_normal_(self.lstm.weight_ih_l1)
+        # nn.init.xavier_normal_(self.lstm.weight_hh_l1)
+        # self.lstm.bias_ih_l0.zero_()
+        # self.lstm.bias_hh_l0.zero_()
 
     def forward(self, input_traces, hidden):
         # input_trace: (batch, pedestrian_num, 2)
@@ -184,7 +185,7 @@ class EncoderNetWithLSTM(nn.Module):
         return output_traces, next_hidden_list
 
     def init_hidden(self, batch_size):
-        return [[torch.zeros(self.n_layers, batch_size, self.hidden_size, requires_grad=True).cuda()
+        return [[torch.zeros(self.n_layers, batch_size, self.hidden_size, requires_grad=True)
                  for _ in range(2)]
                 for _ in range(self.pedestrian_num)]
 
