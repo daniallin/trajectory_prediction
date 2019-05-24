@@ -51,7 +51,7 @@ def create_args():
                         help='w-decay (default: 5e-4)')
     parser.add_argument('--val_interval', type=int, default=5,
                         help='test step')
-    parser.add_argument('--epochs', type=int, default=400,
+    parser.add_argument('--epochs', type=int, default=800,
                         help='number of epoch')
     parser.add_argument('--start_epoch', type=int, default=0,
                         help='the start epoch')
@@ -105,12 +105,12 @@ def validation(args, model, epoch, val_loader):
         FDE_loss_meter.update(FDE_loss.item())
         L2_square_loss_meter.update(L2_square_loss.item())
 
-    val_ADE_loss, val_FDE_loss, val_L2_loss = ADE_loss_meter.avg, FDE_loss_meter.avg, L2_square_loss_meter.avg
+    val_loss = L2_square_loss_meter.avg, ADE_loss_meter.avg, FDE_loss_meter.avg
 
     log.info('Validation Epoch: [%d/%d], L2_suqare_loss: %.9f, ADE_loss: %.9f, FDE_loss: %.9f \n' %
-             (epoch, args.epochs, val_L2_loss, val_ADE_loss, val_FDE_loss))
+             (epoch, args.epochs, val_loss[0], val_loss[1], val_loss[2]))
 
-    return val_ADE_loss
+    return val_loss
 
 
 def main(args):
@@ -189,22 +189,23 @@ def main(args):
             regression_optimizer.step()
             # optimizer.step()
 
-        train_ADE_loss, train_FDE_loss, train_L2_loss = ADE_loss_meter.avg, FDE_loss_meter.avg, L2_square_loss_meter.avg
-
+        train_loss = L2_square_loss_meter.avg, ADE_loss_meter.avg, FDE_loss_meter.avg
+        keeper.save_loss(train_loss)
         # lr_schedul.step(train_L2_loss)
         # encoder_lr_schedul.step(train_ADE_loss)
         # decoder_lr_schedul.step(train_ADE_loss)
         # reg_lr_schedul.step(train_ADE_loss)
 
         log.info('Train Epoch: [%d/%d], L2_suqare_loss: %.9f, ADE_loss: %.9f, FDE_loss: %.9f \n' %
-                 (epoch, args.epochs, train_L2_loss, train_ADE_loss, train_FDE_loss))
+                 (epoch, args.epochs, train_loss[0], train_loss[1], train_loss[2]))
 
         # ----------------------- Validation --------------------
         if epoch != 0 and epoch % args.val_interval == 0:
-            val_ADE_loss = validation(args, model, epoch, val_loader)
+            val_loss = validation(args, model, epoch, val_loader)
+            keeper.save_loss(val_loss, file_name='validation_loss.csv')
 
-            if val_ADE_loss < best_loss:
-                best_loss = val_ADE_loss
+            if val_loss[1] < best_loss:
+                best_loss = val_loss[1]
                 keeper.save_checkpoint({
                     'epoch': epoch,
                     'state_dict': model.state_dict(),
@@ -250,7 +251,7 @@ if __name__ == '__main__':
     log = keeper.setup_logger()
 
     log.info("Using the same optimizer for the model, and optimizer is Adam with amsgrad=False.\n"
-             "The backward loss is ADE_loss \n"
+             "The backward loss is L2_loss \n"
              " The input frame is 5, and predict frame is 5 \n")
 
     start = time.time()

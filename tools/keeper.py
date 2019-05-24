@@ -6,6 +6,8 @@ import logging
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 
 class Keeper(object):
@@ -42,6 +44,14 @@ class Keeper(object):
         plt.scatter(pred[:, 0], pred[:, 1], label='prediction', color='r')
         plt.savefig(img_file)
         plt.clf()
+
+    def save_loss(self, loss_list, file_name='train_loss.csv'):
+        loss_file = os.path.join(self.experiment_dir, file_name)
+        loss_dict = {}
+        for i, loss in enumerate(loss_list):
+            loss_dict[i] = [loss]
+        all_loss = pd.DataFrame(loss_dict)
+        all_loss.to_csv(loss_file, mode='a', header=False)
 
     def setup_logger(self, file_name='train.log'):
         log_file = os.path.join(self.experiment_dir, file_name)
