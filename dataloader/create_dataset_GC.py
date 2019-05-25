@@ -129,11 +129,11 @@ def create_GC_train_test_data(meta_data_path, train_test_data_path, train_step=5
 def main(train_step=5, test_step=5):
     GC_raw_data_path = '../datasets/GC/Annotation'
     GC_meta_data_path = '../datasets/GC_meta_data.json'
-    GC_train_test_data_path = '../datasets/GC_5_8.npz'
+    GC_train_test_data_path = '../datasets/GC_5_5.npz'
 
     create_GC_metadata(GC_raw_data_path, GC_meta_data_path)
     create_GC_train_test_data(GC_meta_data_path, GC_train_test_data_path, train_step, test_step)
 
 
 if __name__ == '__main__':
-    main(train_step=5, test_step=8)
+    main(train_step=5, test_step=5)

@@ -51,7 +51,7 @@ def create_args():
                         help='w-decay (default: 5e-4)')
     parser.add_argument('--val_interval', type=int, default=5,
                         help='test step')
-    parser.add_argument('--epochs', type=int, default=800,
+    parser.add_argument('--epochs', type=int, default=400,
                         help='number of epoch')
     parser.add_argument('--start_epoch', type=int, default=0,
                         help='the start epoch')
@@ -69,7 +69,7 @@ def create_args():
 
     parser.add_argument('--dataset', type=str, default=DATA_PATH)
     parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--backbone', type=str, default='ATT_LSTM_L',
+    parser.add_argument('--backbone', type=str, default='CIDNN',
                         choices=['CIDNN', 'SR_LSTM', 'ATT_LSTM_L'])
     parser.add_argument('--att_method', type=str, default='dot',
                         help='attention method', choices=['dot', 'general', 'concat'])

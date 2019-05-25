@@ -14,6 +14,10 @@ class EncoderWithLSTM(nn.Module):
         self.hidden_size = args.hidden_size
         self.dropout = args.dropout
         self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers, dropout=self.dropout)
+        # nn.init.xavier_normal_(self.lstm.weight_ih_l0)
+        # nn.init.xavier_normal_(self.lstm.weight_hh_l0)
+        # nn.init.xavier_normal_(self.lstm.weight_ih_l1)
+        # nn.init.xavier_normal_(self.lstm.weight_hh_l1)
 
     def forward(self, input_traces, pre_hiddens):
         """
@@ -93,6 +97,11 @@ class DecoderWithAttention(nn.Module):
         self.lstm = nn.LSTM(self.hidden_size*2, self.hidden_size, self.n_layers, dropout=self.dropout)
         self.attention = Attention(self.pedestrian_num, self.hidden_size, self.att_method, self.args.use_cuda)
         self.out = nn.Linear(self.hidden_size * 2, self.hidden_size)
+
+        nn.init.xavier_normal_(self.lstm.weight_ih_l0)
+        nn.init.xavier_normal_(self.lstm.weight_hh_l0)
+        nn.init.xavier_normal_(self.lstm.weight_ih_l1)
+        nn.init.xavier_normal_(self.lstm.weight_hh_l1)
 
     def forward(self, decoder_inputs, last_context, last_hiddens, encoder_outputs):
         batch_size = decoder_inputs.size()[0]

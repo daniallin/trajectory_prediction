@@ -60,7 +60,7 @@ class EncoderNet(nn.Module):
         self.fc1 = torch.nn.Linear(input_size, hidden1_size)
         self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
         self.fc3 = torch.nn.Linear(hidden2_size, hidden_size)
-        initial_fc_weights(self.modules())
+        # initial_fc_weights(self.modules())
 
     def forward(self, input_traces):
         # input_trace: (B, pedestrian_num, input_size(input_frame * 2))
@@ -95,7 +95,7 @@ class DecoderNet(nn.Module):
         self.fc1 = torch.nn.Linear(target_size, hidden1_size)
         self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
         self.fc3 = torch.nn.Linear(hidden2_size, hidden_size)
-        initial_fc_weights(self.modules())
+        # initial_fc_weights(self.modules())
 
     def forward(self, target_traces):
         # target_trace: (B, pedestrian_num, 2)
@@ -130,7 +130,7 @@ class RegressionNet(nn.Module):
         self.fc1 = torch.nn.Linear(hidden_size, regression_size)
         self.fc2 = torch.nn.Linear(regression_size, hidden1_size)
         self.fc3 = torch.nn.Linear(hidden1_size, regression_size)
-        initial_fc_weights(self.modules())
+        # initial_fc_weights(self.modules())
 
     def forward(self, input_attn_hidden_traces, target_hidden_traces, target_traces):
         # target_hidden_trace: (B, pedestrian_num, hidden_size)
