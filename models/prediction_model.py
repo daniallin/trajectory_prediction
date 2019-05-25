@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch import optim
 
-from models.CIDNN import EncoderNetWithLSTM,\
+from models.backbone.CIDNN import EncoderNetWithLSTM,\
     DecoderNet, RegressionNet, Attention
-from models.SR_LSTM import EncoderNetLSTM, SRMotionGate, PredictionNet
+from models.backbone.SR_LSTM import EncoderNetLSTM, SRMotionGate, PredictionNet
+import models.backbone.ATT_LSTM_L as ATT
 
 
 def build_model(args):
@@ -13,6 +12,8 @@ def build_model(args):
         return CIDNN_Model(args)
     elif args.backbone == 'SR_LSTM':
         return SRLSTM_Model(args)
+    elif args.backbone == 'ATT_LSTM_L':
+        return ATT_LSTM_Model(args)
 
 
 class CIDNN_Model(nn.Module):
@@ -97,6 +98,39 @@ class SRLSTM_Model(nn.Module):
         return regression_traces
 
 
+class ATT_LSTM_Model(nn.Module):
+    def __init__(self, args):
+        super(ATT_LSTM_Model, self).__init__()
+        self.args = args
+        self.encoder_net = ATT.EncoderWithLSTM(args)
+        self.decoder_net = ATT.DecoderWithAttention(args)
+        self.regression_net = ATT.PredictionNet(args)
+
+    def forward(self, input_traces):
+        batch_size = self.args.batch_size
+
+        target_traces = input_traces[:, :, self.args.input_frame - 1]
+        encoder_hiddens = self.encoder_net.init_hidden(batch_size)
+        decoder_inputs = self.decoder_net.init_input(batch_size)
+        decoder_context = self.decoder_net.init_input(batch_size)
+
+        for i in range(self.args.input_frame - 1):
+            _, encoder_hiddens = self.encoder_net(input_traces[:, :, i], encoder_hiddens)
+
+        all_regres_traces = torch.zeros(batch_size, self.args.pedestrian_num, self.args.target_frame, self.args.target_size)
+        decoder_hiddens = encoder_hiddens
+        for i in range(self.args.target_frame):
+            encoder_traces, encoder_hiddens = self.encoder_net(target_traces, encoder_hiddens)
+            decoder_outputs, decoder_context, decoder_hidden = self.decoder_net(
+                decoder_inputs, decoder_context, decoder_hiddens, encoder_traces)
+            regres_traces = self.regression_net(decoder_outputs, target_traces)
+            target_traces = regres_traces
+
+            all_regres_traces[:, :, i, :] = regres_traces
+
+        return all_regres_traces
+
+
 if __name__ == '__main__':
     from train import create_args
     parser = create_args()
@@ -108,7 +142,13 @@ if __name__ == '__main__':
     # output = model(input)
     # print(output.size())
 
-    model = SRLSTM_Model(args)
+    # model = SRLSTM_Model(args)
+    # model.eval()
+    # input = torch.rand(256, 20, 5, 2)
+    # output = model(input)
+    # print(output.size())
+
+    model = ATT_LSTM_Model(args)
     model.eval()
     input = torch.rand(256, 20, 5, 2)
     output = model(input)

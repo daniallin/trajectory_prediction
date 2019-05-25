@@ -55,6 +55,8 @@ def create_args():
                         help='number of epoch')
     parser.add_argument('--start_epoch', type=int, default=0,
                         help='the start epoch')
+    parser.add_argument('--dropout', type=int, default=0.5,
+                        help='dropout of lstm')
 
     parser.add_argument('--checkname', type=str, default=None,
                         help='set the checkpoint name')
@@ -67,8 +69,10 @@ def create_args():
 
     parser.add_argument('--dataset', type=str, default=DATA_PATH)
     parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--backbone', type=str, default='CIDNN',
-                        choices=['CIDNN', 'SR_LSTM'])
+    parser.add_argument('--backbone', type=str, default='ATT_LSTM_L',
+                        choices=['CIDNN', 'SR_LSTM', 'ATT_LSTM_L'])
+    parser.add_argument('--att_method', type=str, default='dot',
+                        help='attention method', choices=['dot', 'general', 'concat'])
     return parser
 
 
