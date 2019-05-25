@@ -118,10 +118,11 @@ class ATT_LSTM_Model(nn.Module):
             _, encoder_hiddens = self.encoder_net(input_traces[:, :, i], encoder_hiddens)
 
         all_regres_traces = torch.zeros(batch_size, self.args.pedestrian_num, self.args.target_frame, self.args.target_size)
+        all_regres_traces = all_regres_traces.cuda() if self.args.use_cuda else all_regres_traces
         decoder_hiddens = encoder_hiddens
         for i in range(self.args.target_frame):
             encoder_traces, encoder_hiddens = self.encoder_net(target_traces, encoder_hiddens)
-            decoder_outputs, decoder_context, decoder_hidden = self.decoder_net(
+            decoder_outputs, decoder_context, decoder_hiddens = self.decoder_net(
                 decoder_inputs, decoder_context, decoder_hiddens, encoder_traces)
             regres_traces = self.regression_net(decoder_outputs, target_traces)
             target_traces = regres_traces

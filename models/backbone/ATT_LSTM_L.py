@@ -25,6 +25,7 @@ class EncoderWithLSTM(nn.Module):
         batch_size = self.args.batch_size
         next_hiddens = []
         encoder_traces = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size)
+        encoder_traces = encoder_traces.cuda() if self.args.use_cuda else encoder_traces
         for i in range(self.pedestrian_num):
             input_trace = input_traces[:, i, :].unsqueeze(0)
             encoder_trace, next_hidden = self.lstm(input_trace, (pre_hiddens[i][0], pre_hiddens[i][1]))
@@ -97,6 +98,7 @@ class DecoderWithAttention(nn.Module):
         batch_size = decoder_inputs.size()[0]
         next_hiddens = []
         decoder_outputs = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size)
+        decoder_outputs = decoder_outputs.cuda() if self.args.use_cuda else decoder_outputs
         for i in range(self.pedestrian_num):
             decoder_input = torch.cat((decoder_inputs[:, i, :], last_context[:, i, :]), -1).unsqueeze(0)
             decoder_output, next_hidden = self.lstm(decoder_input, (last_hiddens[i][0], last_hiddens[i][1]))
@@ -136,8 +138,8 @@ class PredictionNet(nn.Module):
 
             regression_list.append(target_delta_trace)
         regression_traces = torch.stack(regression_list, 1)
+        regression_traces = regression_traces.cuda() if self.args.use_cuda else regression_traces
         regression_traces = regression_traces + target_traces   # B*N*2
-
         return regression_traces
 
 
