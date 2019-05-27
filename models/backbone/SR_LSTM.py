@@ -14,10 +14,10 @@ class EncoderNetLSTM(nn.Module):
         self.hidden_size = hidden_size
         self.lstm = nn.LSTM(input_size, hidden_size, self.n_layers)
 
-        nn.init.xavier_normal_(self.lstm.weight_ih_l0)
-        nn.init.xavier_normal_(self.lstm.weight_hh_l0)
-        nn.init.xavier_normal_(self.lstm.weight_ih_l1)
-        nn.init.xavier_normal_(self.lstm.weight_hh_l1)
+        # nn.init.xavier_normal_(self.lstm.weight_ih_l0)
+        # nn.init.xavier_normal_(self.lstm.weight_hh_l0)
+        # nn.init.xavier_normal_(self.lstm.weight_ih_l1)
+        # nn.init.xavier_normal_(self.lstm.weight_hh_l1)
 
     def forward(self, input_traces, hidden):
         # input_traces: (batch, pedestrian_num, 2)
@@ -66,7 +66,7 @@ class SRMotionGate(nn.Module):
 
         self.c_fc = torch.nn.Linear(hidden_size, hidden_size, bias=False)
 
-        initial_fc_weights(self.modules())
+        # initial_fc_weights(self.modules())
 
     def forward(self, input_traces, cell_states, hidden_states):
         # input_traces: (batch, pedestrian_num, 2)

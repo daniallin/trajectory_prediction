@@ -26,7 +26,7 @@ class EncoderWithLSTM(nn.Module):
         :return: encoder_traces: (batch, pedestrian_num, hidden_size)
                  next_hiddens, the same size as pre_hiddens
         """
-        batch_size = self.args.batch_size
+        batch_size = input_traces.size(0)
         next_hiddens = []
         encoder_traces = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size)
         encoder_traces = encoder_traces.cuda() if self.args.use_cuda else encoder_traces

@@ -107,7 +107,7 @@ class ATT_LSTM_Model(nn.Module):
         self.regression_net = ATT.PredictionNet(args)
 
     def forward(self, input_traces):
-        batch_size = self.args.batch_size
+        batch_size = input_traces.size(0)
 
         target_traces = input_traces[:, :, self.args.input_frame - 1]
         encoder_hiddens = self.encoder_net.init_hidden(batch_size)
