@@ -11,9 +11,11 @@ class EncoderWithLSTM(nn.Module):
         self.pedestrian_num = args.pedestrian_num
         self.input_size = args.input_size
         self.n_layers = args.n_layers
+        self.bidirectional = args.bidirectional
         self.hidden_size = args.hidden_size
         self.dropout = args.dropout
-        self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers, dropout=self.dropout)
+        bi = True if self.bidirectional == 2 else False
+        self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers, dropout=self.dropout, bidirectional=bi)
         # nn.init.xavier_normal_(self.lstm.weight_ih_l0)
         # nn.init.xavier_normal_(self.lstm.weight_hh_l0)
         # nn.init.xavier_normal_(self.lstm.weight_ih_l1)
@@ -21,14 +23,14 @@ class EncoderWithLSTM(nn.Module):
 
     def forward(self, input_traces, pre_hiddens):
         """
-        :param input_traces: size: (batch, pedestrian_num, 2), where 2 means (x, y)
-        :param pre_hiddens: size: [self.pedestrian_num, (2, [self.n_layers, batch_size, self.hidden_size])]
-        :return: encoder_traces: (batch, pedestrian_num, hidden_size)
-                 next_hiddens, the same size as pre_hiddens
+        input_traces: size: (batch, pedestrian_num, 2), where 2 means (x, y)
+        pre_hiddens: size: [self.pedestrian_num, (2, [self.n_layers, batch_size, self.hidden_size])]
+        encoder_traces: (batch, pedestrian_num, hidden_size)
+        next_hiddens: the same size as pre_hiddens
         """
         batch_size = input_traces.size(0)
         next_hiddens = []
-        encoder_traces = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size)
+        encoder_traces = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size*self.bidirectional)
         encoder_traces = encoder_traces.cuda() if self.args.use_cuda else encoder_traces
         for i in range(self.pedestrian_num):
             input_trace = input_traces[:, i, :].unsqueeze(0)
@@ -39,14 +41,14 @@ class EncoderWithLSTM(nn.Module):
         return encoder_traces, next_hiddens
 
     def init_hidden(self, batch_size):
-        hidden = torch.zeros(self.n_layers, batch_size, self.hidden_size, requires_grad=True)
+        hidden = torch.zeros(self.n_layers*self.bidirectional, batch_size, self.hidden_size, requires_grad=True)
         hidden = hidden.cuda() if self.args.use_cuda else hidden
         return [[ hidden for _ in range(2)]
                 for _ in range(self.pedestrian_num)]
 
 
 class Attention(nn.Module):
-    def __init__(self, pedestrian_num, hidden_size, method, use_cuda):
+    def __init__(self, pedestrian_num, hidden_size, method, use_cuda, bilstm):
         super(Attention, self).__init__()
         self.pedestrian_num = pedestrian_num
         self.hidden_size = hidden_size
@@ -54,10 +56,10 @@ class Attention(nn.Module):
         self.use_cuda = use_cuda
         # Define layers
         if self.method == 'general':
-            self.attention = nn.Linear(self.hidden_size, self.hidden_size)
+            self.attention = nn.Linear(self.hidden_size * bilstm, self.hidden_size)
         elif self.method == 'concat':
             self.attention = nn.ModuleList([
-                nn.Linear(self.hidden_size * 2, self.hidden_size),
+                nn.Linear(self.hidden_size * 2 * bilstm, self.hidden_size),
                 nn.ReLU(),
                 nn.Linear(self.hidden_size, 1)
             ])
@@ -91,25 +93,34 @@ class DecoderWithAttention(nn.Module):
         self.args = args
         self.pedestrian_num = args.pedestrian_num
         self.n_layers = args.n_layers
+        self.bidirectional = args.bidirectional
         self.hidden_size = args.hidden_size
         self.dropout = args.dropout
         self.att_method = args.att_method
-        self.lstm = nn.LSTM(self.hidden_size*2, self.hidden_size, self.n_layers, dropout=self.dropout)
-        self.attention = Attention(self.pedestrian_num, self.hidden_size, self.att_method, self.args.use_cuda)
-        self.out = nn.Linear(self.hidden_size * 2, self.hidden_size)
-
-        nn.init.xavier_normal_(self.lstm.weight_ih_l0)
-        nn.init.xavier_normal_(self.lstm.weight_hh_l0)
-        nn.init.xavier_normal_(self.lstm.weight_ih_l1)
-        nn.init.xavier_normal_(self.lstm.weight_hh_l1)
+        bi = True if self.bidirectional == 2 else False
+        self.lstm = nn.LSTM(self.hidden_size*self.bidirectional+2, self.hidden_size,
+                            self.n_layers, dropout=self.dropout, bidirectional=bi)
+        self.attention = Attention(self.pedestrian_num, self.hidden_size, self.att_method,
+                                   self.args.use_cuda, self.bidirectional)
+        self.out = nn.Linear(self.hidden_size*2*self.bidirectional, self.hidden_size*self.bidirectional)
+        hidden1_size = 32
+        hidden2_size = 64
+        self.fc1 = torch.nn.Linear(args.input_size, hidden1_size)
+        self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
+        self.fc3 = torch.nn.Linear(hidden2_size, args.hidden_size*self.bidirectional)
 
     def forward(self, decoder_inputs, last_context, last_hiddens, encoder_outputs):
         batch_size = decoder_inputs.size()[0]
         next_hiddens = []
-        decoder_outputs = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size)
+        decoder_outputs = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size*self.bidirectional)
         decoder_outputs = decoder_outputs.cuda() if self.args.use_cuda else decoder_outputs
         for i in range(self.pedestrian_num):
-            decoder_input = torch.cat((decoder_inputs[:, i, :], last_context[:, i, :]), -1).unsqueeze(0)
+            teacher_trace = decoder_inputs[:, i, :]
+            # teacher_trace = F.relu(self.fc1(teacher_trace))
+            # teacher_trace = F.relu(self.fc2(teacher_trace))
+            # teacher_trace = self.fc3(teacher_trace)
+            decoder_input = torch.cat((teacher_trace, last_context[:, i, :]), -1).unsqueeze(0)
+
             decoder_output, next_hidden = self.lstm(decoder_input, (last_hiddens[i][0], last_hiddens[i][1]))
             decoder_outputs[:, i, :] = decoder_output.squeeze(0)
             next_hiddens.append(next_hidden)
@@ -117,12 +128,17 @@ class DecoderWithAttention(nn.Module):
         # Attention
         attention_weights = self.attention(decoder_outputs, encoder_outputs).unsqueeze(-1)  # B*N
         context = attention_weights.expand(encoder_outputs.size()) * encoder_outputs  # B*N*H
-        outputs = F.log_softmax(self.out(torch.cat((decoder_outputs, context), 2)), dim=-1)
+        outputs = self.out(torch.cat((decoder_outputs, context), 2))
 
         return outputs, context, next_hiddens
 
-    def init_input(self, batch_size):
-        input = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size, requires_grad=True)
+    def init_context(self, batch_size):
+        input = torch.zeros(batch_size, self.pedestrian_num, self.hidden_size*self.bidirectional, requires_grad=True)
+        input = input.cuda() if self.args.use_cuda else input
+        return input
+
+    def init_decoder_input(self, batch_size):
+        input = torch.zeros(batch_size, self.pedestrian_num, 2, requires_grad=True)
         input = input.cuda() if self.args.use_cuda else input
         return input
 
@@ -134,16 +150,21 @@ class PredictionNet(nn.Module):
         self.pedestrian_num = args.pedestrian_num
         self.regression_size = args.target_size  # 2
         self.hidden_size = args.hidden_size
+        self.bidirectional = args.bidirectional
 
-        self.fc = torch.nn.Linear(self.hidden_size, self.regression_size)
+        hidden1_size = 64
+        hidden2_size = 32
+        self.fc1 = torch.nn.Linear(self.hidden_size*self.bidirectional, hidden1_size)
+        self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
+        self.fc3 = torch.nn.Linear(hidden2_size, self.regression_size)
 
-    def forward(self, cell_states, target_traces):
-        # target_hidden_trace: (B, pedestrian_num, hidden_size)
-
+    def forward(self, decoder_outputs, target_traces):
         regression_list = []
         for i in range(self.pedestrian_num):
-            input_attn_hidden_trace = cell_states[:, i]
-            target_delta_trace = self.fc(input_attn_hidden_trace)
+            input_attn_hidden_trace = decoder_outputs[:, i]
+            target_delta_trace = F.relu(self.fc1(input_attn_hidden_trace))
+            target_delta_trace = F.relu(self.fc2(target_delta_trace))
+            target_delta_trace = self.fc3(target_delta_trace)
 
             regression_list.append(target_delta_trace)
         regression_traces = torch.stack(regression_list, 1)
