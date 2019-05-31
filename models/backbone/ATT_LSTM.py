@@ -103,11 +103,11 @@ class DecoderWithAttention(nn.Module):
         self.attention = Attention(self.pedestrian_num, self.hidden_size, self.att_method,
                                    self.args.use_cuda, self.bidirectional)
         self.out = nn.Linear(self.hidden_size*2*self.bidirectional, self.hidden_size*self.bidirectional)
-        hidden1_size = 32
-        hidden2_size = 64
-        self.fc1 = torch.nn.Linear(args.input_size, hidden1_size)
-        self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
-        self.fc3 = torch.nn.Linear(hidden2_size, args.hidden_size*self.bidirectional)
+        # hidden1_size = 32
+        # hidden2_size = 64
+        # self.fc1 = torch.nn.Linear(args.input_size, hidden1_size)
+        # self.fc2 = torch.nn.Linear(hidden1_size, hidden2_size)
+        # self.fc3 = torch.nn.Linear(hidden2_size, args.hidden_size*self.bidirectional)
 
     def forward(self, decoder_inputs, last_context, last_hiddens, encoder_outputs):
         batch_size = decoder_inputs.size()[0]

@@ -37,6 +37,9 @@ def create_args():
                         help='whether using bidirectional LSTM, 1 means does not use, 2 means use')
     parser.add_argument('--teacher', type=bool, default=False,
                         help='whether using teacher forcing in decoder net of ATT_LSTM')
+    parser.add_argument('--lr_optim', type=str, default='sgd',
+                        choices=['adam', 'amsgrad', 'adam_separate', 'sgd'],
+                        help='optimizer using for the model')
 
     parser.add_argument('--target_frame', type=int, default=5,
                         help='number of target frames')
@@ -45,9 +48,9 @@ def create_args():
 
     parser.add_argument('--batch_size', type=int, default=256,
                         help='batch size for training')
-    parser.add_argument('--lr', type=float, default=1e-3,
+    parser.add_argument('--lr', type=float, default=1e-4,
                         help='learning rate')
-    parser.add_argument('--final_lr', default=0.00001, help=
+    parser.add_argument('--final_lr', default=0.000001, help=
                         'final learning rate')
     parser.add_argument('--momentum', type=float, default=0.9,
                         help='momentum (default: 0.9)')
@@ -59,7 +62,7 @@ def create_args():
                         help='number of epoch')
     parser.add_argument('--start_epoch', type=int, default=0,
                         help='the start epoch')
-    parser.add_argument('--dropout', type=int, default=0,
+    parser.add_argument('--dropout', type=float, default=0,
                         help='dropout of lstm')
 
     parser.add_argument('--checkname', type=str, default=None,
@@ -132,19 +135,19 @@ def main(args):
     model = build_model(args)
     model = model.cuda() if args.use_cuda else model
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    # encoder_optimizer = optim.Adam(model.encoder_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    # decoder_optimizer = optim.Adam(model.decoder_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    # regression_optimizer = optim.Adam(model.regression_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    # encoder_lr_schedul = ReduceLROnPlateau(encoder_optimizer, mode='min', factor=0.8, patience=5,
-    #                                verbose=True, threshold=0.0001, threshold_mode='rel',
-    #                                cooldown=3, min_lr=0, eps=1e-08)
-    # decoder_lr_schedul = ReduceLROnPlateau(decoder_optimizer, mode='min', factor=0.8, patience=5,
-    #                                verbose=True, threshold=0.0001, threshold_mode='rel',
-    #                                cooldown=3, min_lr=0, eps=1e-08)
-    # reg_lr_schedul = ReduceLROnPlateau(decoder_optimizer, mode='min', factor=0.8, patience=5,
-    #                                verbose=True, threshold=0.0001, threshold_mode='rel',
-    #                                cooldown=3, min_lr=0, eps=1e-08)
+    if args.lr_optim == 'adam':
+        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    elif args.lr_optim == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum)
+        lr_schedule = ReduceLROnPlateau(optimizer, mode='min', factor=0.8, patience=5,
+                                        verbose=True, threshold=0.0001, threshold_mode='rel',
+                                        cooldown=3, min_lr=args.final_lr, eps=1e-08)
+    elif args.lr_optim == 'amsgrad':
+        lr_schedule = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, amsgrad=True)
+    elif args.lr_optim == 'adam_separate':
+        encoder_optimizer = optim.Adam(model.encoder_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        decoder_optimizer = optim.Adam(model.decoder_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        regression_optimizer = optim.Adam(model.regression_net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     # Whether using checkpoint
     if args.resume:
@@ -156,10 +159,13 @@ def main(args):
             model.module.load_state_dict(checkpoint['state_dict'])
         else:
             model.load_state_dict(checkpoint['state_dict'])
-        # encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
-        # decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
-        # regression_optimizer.load_state_dict(checkpoint['regression_optimizer'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
+
+        if args.lr_optim == 'adam_separate':
+            encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
+            decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
+            regression_optimizer.load_state_dict(checkpoint['regression_optimizer'])
+        else:
+            optimizer.load_state_dict(checkpoint['optimizer'])
         best_loss = checkpoint['best_loss']
         args.start_epoch = checkpoint['epoch'] + 1
     else:
@@ -182,10 +188,13 @@ def main(args):
                 train_input_traces = train_input_traces.cuda()
                 train_target_traces = train_target_traces.cuda()
 
-            # encoder_optimizer.zero_grad()
-            # decoder_optimizer.zero_grad()
-            # regression_optimizer.zero_grad()
-            optimizer.zero_grad()
+            if args.lr_optim == 'adam_separate':
+                encoder_optimizer.zero_grad()
+                decoder_optimizer.zero_grad()
+                regression_optimizer.zero_grad()
+            else:
+                optimizer.zero_grad()
+
             if args.teacher:
                 regression_traces = model(train_input_traces, train_target_traces)
             else:
@@ -197,17 +206,18 @@ def main(args):
             L2_square_loss_meter.update(L2_square_loss.item())
 
             L2_square_loss.backward()
-            # encoder_optimizer.step()
-            # decoder_optimizer.step()
-            # regression_optimizer.step()
-            optimizer.step()
+            if args.lr_optim == 'adam_separate':
+                encoder_optimizer.step()
+                decoder_optimizer.step()
+                regression_optimizer.step()
+            else:
+                optimizer.step()
 
         train_loss = L2_square_loss_meter.avg, ADE_loss_meter.avg, FDE_loss_meter.avg
         keeper.save_loss(train_loss)
-        # lr_schedul.step(train_L2_loss)
-        # encoder_lr_schedul.step(train_ADE_loss)
-        # decoder_lr_schedul.step(train_ADE_loss)
-        # reg_lr_schedul.step(train_ADE_loss)
+
+        if args.lr_optim == 'sgd':
+            lr_schedule.step(train_loss[0])
 
         log.info('Train Epoch: [%d/%d], L2_suqare_loss: %.9f, ADE_loss: %.9f, FDE_loss: %.9f \n' %
                  (epoch, args.epochs, train_loss[0], train_loss[1], train_loss[2]))
@@ -219,25 +229,41 @@ def main(args):
 
             if val_loss[1] < best_loss:
                 best_loss = val_loss[1]
-                keeper.save_checkpoint({
-                    'epoch': epoch,
-                    'state_dict': model.state_dict(),
-                    # 'encoder_optimizer': encoder_optimizer.state_dict(),
-                    # 'decoder_optimizer': decoder_optimizer.state_dict(),
-                    # 'regression_optimizer': regression_optimizer.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'best_loss': best_loss,
-                }, 'best_model.pth')
+                if args.lr_optim == 'adam_separate':
+                    keeper.save_checkpoint({
+                        'epoch': epoch,
+                        'state_dict': model.state_dict(),
+                        'encoder_optimizer': encoder_optimizer.state_dict(),
+                        'decoder_optimizer': decoder_optimizer.state_dict(),
+                        'regression_optimizer': regression_optimizer.state_dict(),
+                        'best_loss': best_loss,
+                    }, 'best_model.pth')
 
-        keeper.save_checkpoint({
-            'epoch': epoch,
-            'state_dict': model.state_dict(),
-            # 'encoder_optimizer': encoder_optimizer.state_dict(),
-            # 'decoder_optimizer': decoder_optimizer.state_dict(),
-            # 'regression_optimizer': regression_optimizer.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'best_loss': best_loss,
-        })
+                else:
+                    keeper.save_checkpoint({
+                        'epoch': epoch,
+                        'state_dict': model.state_dict(),
+                        'optimizer': optimizer.state_dict(),
+                        'best_loss': best_loss,
+                    }, 'best_model.pth')
+
+        if args.lr_optim == 'adam_separate':
+            keeper.save_checkpoint({
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+                'encoder_optimizer': encoder_optimizer.state_dict(),
+                'decoder_optimizer': decoder_optimizer.state_dict(),
+                'regression_optimizer': regression_optimizer.state_dict(),
+                # 'optimizer': optimizer.state_dict(),
+                'best_loss': best_loss,
+            })
+        else:
+            keeper.save_checkpoint({
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'best_loss': best_loss,
+            })
 
         e_time = time.time()
         log.info('The {0}th epoch time is {1}\n'.format(epoch, e_time - s_time))
