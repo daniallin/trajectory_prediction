@@ -37,7 +37,7 @@ def create_args():
                         help='whether using bidirectional LSTM, 1 means does not use, 2 means use')
     parser.add_argument('--teacher', type=bool, default=False,
                         help='whether using teacher forcing in decoder net of ATT_LSTM')
-    parser.add_argument('--lr_optim', type=str, default='sgd',
+    parser.add_argument('--lr_optim', type=str, default='adam',
                         choices=['adam', 'amsgrad', 'adam_separate', 'sgd'],
                         help='optimizer using for the model')
 
@@ -48,9 +48,9 @@ def create_args():
 
     parser.add_argument('--batch_size', type=int, default=256,
                         help='batch size for training')
-    parser.add_argument('--lr', type=float, default=1e-4,
+    parser.add_argument('--lr', type=float, default=3e-3,
                         help='learning rate')
-    parser.add_argument('--final_lr', default=0.000001, help=
+    parser.add_argument('--final_lr', default=0.00001, help=
                         'final learning rate')
     parser.add_argument('--momentum', type=float, default=0.9,
                         help='momentum (default: 0.9)')
