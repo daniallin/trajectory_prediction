@@ -76,8 +76,8 @@ def create_args():
 
     parser.add_argument('--dataset', type=str, default=DATA_PATH)
     parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--backbone', type=str, default='ATT_LSTM',
-                        choices=['CIDNN', 'SR_LSTM', 'ATT_LSTM'])
+    parser.add_argument('--backbone', type=str, default='ATT_LSTM_Spatial',
+                        choices=['CIDNN', 'SR_LSTM', 'ATT_LSTM', 'ATT_LSTM_Spatial'])
     parser.add_argument('--att_method', type=str, default='concat',
                         help='attention method', choices=['dot', 'general', 'concat'])
     return parser
