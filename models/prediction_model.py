@@ -15,6 +15,8 @@ def build_model(args):
         return SRLSTM_Model(args)
     elif args.backbone == 'ATT_LSTM':
         return ATT_LSTM_Model(args)
+    elif args.backbone == 'ATT_LSTM_Spatial':
+        return ATT_LSTM_Spatial(args)
 
 
 class CIDNN_Model(nn.Module):
