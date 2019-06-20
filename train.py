@@ -48,13 +48,13 @@ def create_args():
 
     parser.add_argument('--batch_size', type=int, default=256,
                         help='batch size for training')
-    parser.add_argument('--lr', type=float, default=3e-3,
+    parser.add_argument('--lr', type=float, default=1e-3,
                         help='learning rate')
     parser.add_argument('--final_lr', default=0.00001, help=
                         'final learning rate')
     parser.add_argument('--momentum', type=float, default=0.9,
                         help='momentum (default: 0.9)')
-    parser.add_argument('--weight_decay', type=float, default=5e-3,
+    parser.add_argument('--weight_decay', type=float, default=1e-3,
                         help='w-decay (default: 5e-4)')
     parser.add_argument('--val_interval', type=int, default=5,
                         help='test step')
@@ -76,7 +76,7 @@ def create_args():
 
     parser.add_argument('--dataset', type=str, default=DATA_PATH)
     parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--backbone', type=str, default='ATT_LSTM_Spatial',
+    parser.add_argument('--backbone', type=str, default='ATT_LSTM',
                         choices=['CIDNN', 'SR_LSTM', 'ATT_LSTM', 'ATT_LSTM_Spatial'])
     parser.add_argument('--att_method', type=str, default='concat',
                         help='attention method', choices=['dot', 'general', 'concat'])
@@ -155,10 +155,10 @@ def main(args):
         if not os.path.exists(check_path):
             raise RuntimeError("=> no checkpoint found")
         checkpoint = torch.load(check_path)
-        if args.use_cuda:
-            model.module.load_state_dict(checkpoint['state_dict'])
-        else:
-            model.load_state_dict(checkpoint['state_dict'])
+        # if args.use_cuda:
+        #     model.module.load_state_dict(checkpoint['state_dict'])
+        # else:
+        model.load_state_dict(checkpoint['state_dict'])
 
         if args.lr_optim == 'adam_separate':
             encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
@@ -181,7 +181,7 @@ def main(args):
         FDE_loss_meter = AverageMeter()
         L2_square_loss_meter = AverageMeter()
         # adjust_learning_rate([encoder_optimizer, decoder_optimizer, regression_optimizer], args.lr, epoch)
-        # adjust_learning_rate([optimizer], args.lr, epoch)
+        adjust_learning_rate([optimizer], args.lr, epoch)
 
         for i, (train_input_traces, train_target_traces) in enumerate(train_loader):
             if args.use_cuda:
